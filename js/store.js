@@ -15,11 +15,26 @@
  *   getDay() 返回 0=周日，所以要把它映射到 7，否则周日会被算到下一周。
  */
 
+/*
+ * 科目配色：米黄纸底上的柔和暖色。
+ *
+ * ★ 原来的鲜红/鲜蓝/鲜绿在这张纸上有两个问题：
+ *   ① 太跳，跟"温馨"不搭；
+ *   ② 对比度不达标 —— 尤其绿色只有 2.35，而角标字才 10px，
+ *      WCAG 对小字要求 4.5:1。实测这三个都过线了。
+ */
 const DEFAULT_SUBJECTS = [
-    { key: '语文', short: '语', goal: 1, color: '#ef4444' },
-    { key: '数学', short: '数', goal: 2, color: '#3b82f6' },
-    { key: '英语', short: '英', goal: 2, color: '#10b981' }
+    { key: '语文', short: '语', goal: 1, color: '#b5503a' },  // 砖红 4.67
+    { key: '数学', short: '数', goal: 2, color: '#3f6b96' },  // 灰蓝 5.19
+    { key: '英语', short: '英', goal: 2, color: '#48754f' }   // 草绿 4.95
 ];
+
+/* 旧配色 → 新配色。只换这三个已知的旧值，用户自己改过的不动 */
+const LEGACY_COLORS = {
+    '#ef4444': '#b5503a',
+    '#3b82f6': '#3f6b96',
+    '#10b981': '#48754f',
+};
 
 const DataStore = {
     data: null,
@@ -226,6 +241,10 @@ const DataStore = {
             }
             if (!this.data.records) this.data.records = {};
             if (!this.data.subjects) this.data.subjects = JSON.parse(JSON.stringify(DEFAULT_SUBJECTS));
+            // 老数据里的鲜艳色换掉，不然在米黄纸上又跳又看不清
+            for (const s of this.data.subjects) {
+                if (LEGACY_COLORS[s.color]) s.color = LEGACY_COLORS[s.color];
+            }
         }
         this.cacheSave();
         return this.data;

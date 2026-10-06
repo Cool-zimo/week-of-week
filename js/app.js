@@ -114,9 +114,12 @@
     /** 角标：有记录显示科目简称，没有就显示"无" */
     function tagsHTML(dateKey) {
         const subs = DataStore.subjectsOf(dateKey);
-        if (!subs.length) return '<span class="tag tag-none">无</span>';
+        // 没记录只放一个极淡的小点。
+        // 原来写的是"无"字 —— 一个月里 31 个格子全是"无"太吵，
+        // 反而看不出哪天学了。留一个点，既保留"有/无"的信息，又不抢视线。
+        if (!subs.length) return '<i class="tag-dot"></i>';
         return subs.map(k =>
-            `<span class="tag" style="background:${DataStore.colorOf(k)}">${esc(DataStore.shortOf(k))}</span>`
+            `<span class="tag" style="color:${DataStore.colorOf(k)}">${esc(DataStore.shortOf(k))}</span>`
         ).join('');
     }
 
