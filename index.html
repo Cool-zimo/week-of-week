@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>WEEK OF WEEK · 粥粥记录</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -116,10 +117,13 @@
       <div class="field">
         <label class="flabel">照片佐证（可选，可多张）</label>
         <div id="dm-photos" class="photos"></div>
-        <label class="pick">
-          <input type="file" id="dm-file" accept="image/*" multiple hidden>
-          <span id="dm-pick" class="pick-btn">＋ 添加照片</span>
-        </label>
+        <div class="pick-row">
+          <label class="pick">
+            <input type="file" id="dm-file" accept="image/*" multiple hidden>
+            <span id="dm-pick" class="pick-btn">＋ 添加照片</span>
+          </label>
+          <button id="dm-cam" class="pick-btn cam-btn">📷 拍照</button>
+        </div>
       </div>
     </div>
 
@@ -130,6 +134,34 @@
         <button id="dm-save" class="btn-main">保存</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ══════════ 拍照 ══════════ -->
+<div id="cam-modal" class="modal hidden">
+  <div class="modal-box cam-box">
+    <div class="modal-head">
+      <div>
+        <h3 class="dm-title">📷 拍一张</h3>
+        <p class="dm-sub">拍完会加进这天的照片里</p>
+      </div>
+      <button id="cam-close" class="icon-btn">✕</button>
+    </div>
+
+    <div class="cam-stage">
+      <video id="cam-video" playsinline muted autoplay></video>
+      <div id="cam-flash" class="cam-flash hidden"></div>
+      <div id="cam-msg" class="cam-msg"></div>
+    </div>
+
+    <div id="cam-err" class="pub-status hidden"></div>
+
+    <div class="cam-bar">
+      <button id="cam-flip" class="btn-ghost hidden">🔄 翻转</button>
+      <button id="cam-shoot" class="shoot" disabled></button>
+      <button id="cam-done" class="btn-main">完成</button>
+    </div>
+    <p class="cam-tip">可以连着拍几张，拍完点「完成」</p>
   </div>
 </div>
 
@@ -194,6 +226,7 @@
 <script src="js/api.js"></script>
 <script src="js/store.js"></script>
 <script src="js/photo.js"></script>
+<script src="js/camera.js"></script>
 <script src="js/publish.js"></script>
 <script src="js/app.js"></script>
 </body>

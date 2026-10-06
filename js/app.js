@@ -492,6 +492,30 @@
         $('token-input').addEventListener('keydown', e => {
             if (e.key === 'Enter') $('login-btn').click();
         });
+        /* ── 拍照 ── */
+        $('dm-cam').addEventListener('click', async () => {
+            const ed = state.editing;
+            if (!ed) return;
+            try {
+                await Camera.open(file => {
+                    ed.pendingFiles.push(file);
+                    renderPhotos();
+                    toast('已拍一张，可以接着拍', 'ok');
+                });
+            } catch (e) {
+                toast(e.message || '摄像头打不开', 'err');
+                // 失败时把原因显示在弹窗里，比一闪而过的 toast 看得清
+                const st = $('cam-err');
+                st.textContent = e.message || '摄像头打不开';
+                st.classList.remove('hidden');
+                $('cam-modal').classList.remove('hidden');
+            }
+        });
+        $('cam-shoot').addEventListener('click', () => Camera.shoot());
+        $('cam-flip').addEventListener('click', () => Camera.flip());
+        $('cam-close').addEventListener('click', () => Camera.close());
+        $('cam-done').addEventListener('click', () => Camera.close());
+
         $('publish-btn').addEventListener('click', openPublish);
         $('pub-close').addEventListener('click', () => $('pub-modal').classList.add('hidden'));
         $('pub-cancel').addEventListener('click', () => $('pub-modal').classList.add('hidden'));
