@@ -105,6 +105,8 @@ button { font-family: inherit; cursor: pointer; }
 .top-sub { margin: 0; font-size: 11px; color: var(--dim2); }
 .top-right { display: flex; align-items: center; gap: 9px; font-size: 12px; color: var(--dim); }
 .sync { font-size: 11px; }
+/* 有没上云的记录时，这句要显眼 —— 不能让人以为同步好了 */
+.sync-warn { color: #a3462c; font-weight: 600; opacity: 1 !important; }
 .user { color: var(--ink2); }
 .icon-btn {
     border: 1px solid var(--line2); background: var(--paper); color: var(--dim);
@@ -400,3 +402,24 @@ button { font-family: inherit; cursor: pointer; }
 }
 .toast.err { background: #a3462c; }
 .toast.ok  { background: #5c7a4a; }
+
+/* ── 发布给家长 ── */
+.pub-btn {
+  font-size: 11px; padding: 4px 10px; border-radius: 14px;
+  border: 1px solid var(--line); background: #fff; color: var(--ink);
+  cursor: pointer; font-family: inherit;
+}
+.pub-btn:hover { background: var(--paper2, #fdfbf6); }
+.pub-warn {
+  font-size: 12px; line-height: 1.7; color: #8a4a32;
+  background: #fdf3ec; border: 1px solid #f0d9c8; border-radius: 8px;
+  padding: 10px 12px; margin-top: 4px;
+}
+.pub-warn code { background: #fff; padding: 1px 4px; border-radius: 3px; }
+.pub-status {
+  font-size: 12px; line-height: 1.8; margin-top: 10px;
+  padding: 10px 12px; border-radius: 8px;
+  background: #f2f7f2; border: 1px solid #d6e6d6;
+}
+.pub-link { color: #3f6b96; word-break: break-all; }
+.pub-meta { color: var(--dim); font-size: 11px; }

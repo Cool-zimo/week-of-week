@@ -49,6 +49,7 @@
     </div>
     <div class="top-right">
       <span id="sync-state" class="sync">—</span>
+      <button id="publish-btn" class="pub-btn" title="生成一个网页给家人看">📤 给家长看</button>
       <span id="user-name" class="user"></span>
       <button id="logout-btn" class="icon-btn" title="退出">⏻</button>
     </div>
@@ -132,6 +133,56 @@
   </div>
 </div>
 
+<!-- ══════════ 发布 ══════════ -->
+<div id="pub-modal" class="modal hidden">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div>
+        <h3 class="dm-title">📤 生成一个页面给家长看</h3>
+        <p class="dm-sub">做完给你一个链接，打开就是学习记录</p>
+      </div>
+      <button id="pub-close" class="icon-btn">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="field">
+        <label class="flabel">发布多长一段时间</label>
+        <div id="pub-range" class="chips">
+          <button class="chip on" data-w="2">最近 2 周</button>
+          <button class="chip" data-w="4">最近 4 周</button>
+          <button class="chip" data-w="8">最近 8 周</button>
+          <button class="chip" data-w="0">全部</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="flabel">包含照片吗</label>
+        <div id="pub-photos" class="chips">
+          <button class="chip on" data-p="1">包含（能佐证）</button>
+          <button class="chip" data-p="0">只要文字</button>
+        </div>
+      </div>
+
+      <div class="pub-warn">
+        <b>⚠️ 这一点要先想清楚</b><br>
+        你的记录存在<b>私有</b>仓库里，但 GitHub 的免费网页托管只对<b>公开</b>仓库开放。
+        所以发布时会新建一个<b>公开</b>仓库 <code>wow-view</code> ——
+        <b>链接拿到的人都能看到，照片也一样</b>。<br>
+        不想公开就选「只要文字」，或者别发布。
+      </div>
+
+      <div id="pub-status" class="pub-status hidden"></div>
+    </div>
+
+    <div class="modal-foot">
+      <button id="pub-cancel" class="btn-ghost">取消</button>
+      <div class="foot-right">
+        <button id="pub-go" class="btn-main">发布</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════ 照片大图 ══════════ -->
 <div id="viewer" class="viewer hidden">
   <button id="viewer-close" class="viewer-x">✕</button>
@@ -143,6 +194,7 @@
 <script src="js/api.js"></script>
 <script src="js/store.js"></script>
 <script src="js/photo.js"></script>
+<script src="js/publish.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

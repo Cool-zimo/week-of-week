@@ -34,8 +34,29 @@
     }
     function syncing(on, msg) {
         const el = $('sync-state');
-        el.textContent = on ? (msg || '同步中…') : '已保存';
+        if (on) el.dataset.busy = '1'; else delete el.dataset.busy;
+        el.textContent = on ? (msg || '同步中…') : syncLabel();
         el.style.opacity = on ? '.75' : '.9';
+        el.classList.toggle('sync-warn', !on && DataStore.pendingCount() > 0);
+    }
+
+    /** 顶栏那句话：有没上云的就说清楚，别只写"已保存"骗人 */
+    function syncLabel() {
+        const n = DataStore.pendingCount();
+        return n ? `${n} 条未同步` : '已保存';
+    }
+
+    /** 补推队列；成功就刷新界面并把顶栏改回来 */
+    async function flushPending(quiet) {
+        const n = DataStore.pendingCount();
+        if (!n) return;
+        if (!quiet) syncing(true, '补同步…');
+        const r = await DataStore.flushPending();
+        syncing(false);
+        if (r.ok && r.n) {
+            renderAll();
+            if (!quiet) toast(`${r.n} 条已同步到云端`, 'ok');
+        }
     }
 
     // ══════════ 登录 ══════════
@@ -77,6 +98,9 @@
             await DataStore.pull();
             renderAll();
             syncing(false);
+            bindAutoSync();
+            // 进来先看看有没有上次没推上去的
+            if (DataStore.pendingCount()) flushPending(false);
         } catch (e) {
             syncing(false);
             toast('读取失败：' + e.message + '（显示的是本地缓存）', 'err');
@@ -87,6 +111,12 @@
 
     // ══════════ 渲染 ══════════
     function renderAll() {
+        // 顶栏状态跟着每次重绘走 —— 不指望调用方记得调 syncing(false)
+        const el = $('sync-state');
+        if (el && !el.dataset.busy) {
+            el.textContent = syncLabel();
+            el.classList.toggle('sync-warn', DataStore.pendingCount() > 0);
+        }
         renderDebtBanner();
         if (state.view === 'month') renderMonth(); else renderWeek();
         $('view-month').classList.toggle('hidden', state.view !== 'month');
@@ -309,14 +339,18 @@
         });
     }
 
-    async function photoURL(path) {
-        if (state.urlCache.has(path)) return state.urlCache.get(path);
+    /** 老照片只存了 path，统一按主仓取；新的带 repo */
+    async function photoURL(p) {
+        const path = typeof p === 'string' ? p : p.path;
+        const repo = typeof p === 'string' ? DataStore.repo : DataStore.photoRepo(p);
+        const ck = repo + '/' + path;
+        if (state.urlCache.has(ck)) return state.urlCache.get(ck);
         try {
-            const u = await Photos.loadURL(state.api, DataStore.owner, DataStore.repo, path);
-            state.urlCache.set(path, u);
+            const u = await Photos.loadURL(state.api, DataStore.owner, repo, path);
+            state.urlCache.set(ck, u);
             return u;
         } catch (e) {
-            console.warn('照片加载失败', path, e.message);
+            console.warn('照片加载失败', repo, path, e.message);
             return null;
         }
     }
@@ -363,21 +397,86 @@
         try {
             syncing(true, '保存中…');
             if (ed.pendingFiles.length) {
+                // 先压缩出实际大小，才知道要占多少、该放哪个仓库
+                syncing(true, '处理照片…');
+                const packed = await Photos.pack(ed.pendingFiles,
+                    pct => syncing(true, `处理照片 ${pct}%`));
+                const need = packed.reduce((a, p) => a + p.size, 0);
+                const v = await DataStore.ensureVault(need);
+                if (v.isNew) toast(`已新建存储仓库 ${v.repo}`, 'ok');
+
+                syncing(true, '传照片…');
                 const up = await Photos.upload(
-                    state.api, DataStore.owner, DataStore.repo, ed.dateKey,
-                    ed.pendingFiles, pct => syncing(true, `传照片 ${pct}%`));
+                    state.api, DataStore.owner, v.repo, ed.dateKey, packed,
+                    pct => syncing(true, `传照片 ${pct}%`));
+                // 记住每张照片住在哪个仓库，读取时才找得到
+                for (const u of up) u.repo = v.repo;
                 ed.photos = ed.photos.concat(up);
                 ed.pendingFiles = [];
             }
-            await DataStore.saveRecord(ed.dateKey, ed.subjects, $('dm-note').value, ed.photos);
+            DataStore.recalcVaults();
+            const r = await DataStore.saveRecord(ed.dateKey, ed.subjects, $('dm-note').value, ed.photos);
             syncing(false);
-            toast('已保存', 'ok');
             $('day-modal').classList.add('hidden');
             state.editing = null;
             renderAll();
+            // ★ 没上云就不能说"已保存" —— 那是骗人，用户会以为同步好了
+            if (r.synced) toast('已保存', 'ok');
+            else toast('已存到本地，联网后自动同步', 'err');
         } catch (e) {
             syncing(false);
             toast('保存失败：' + e.message, 'err');
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    /** 网络恢复、切回页面、每隔一分钟，都试着把没上云的补上 */
+    function bindAutoSync() {
+        window.addEventListener('online', () => flushPending(false));
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) flushPending(true);
+        });
+        setInterval(() => { if (!document.hidden) flushPending(true); }, 60000);
+    }
+
+    /* ══════════ 发布给家长 ══════════ */
+    const pubOpt = { weeks: 2, withPhotos: true };
+
+    function openPublish() {
+        $('pub-modal').classList.remove('hidden');
+        $('pub-status').classList.add('hidden');
+    }
+
+    /** 按选项算出要发布哪些天 */
+    function pubDays() {
+        const all = Object.keys(DataStore.data.records || {}).sort();
+        if (!all.length) return [];
+        if (!pubOpt.weeks) return all.map(k => DataStore.parseKey(k));
+        const today = new Date();
+        const mon = DataStore.mondayOf(today);
+        const from = DataStore.addDays(mon, -7 * (pubOpt.weeks - 1));
+        return all.map(k => DataStore.parseKey(k)).filter(d => d >= from);
+    }
+
+    async function doPublish() {
+        const days = pubDays();
+        if (!days.length) { toast('这段时间还没有记录', 'err'); return; }
+        const btn = $('pub-go');
+        btn.disabled = true;
+        const st = $('pub-status');
+        st.classList.remove('hidden');
+        try {
+            st.textContent = '正在准备…';
+            const r = await Publish.push(state.api, DataStore.owner, DataStore.data, days,
+                { withPhotos: pubOpt.withPhotos, title: '粥粥的学习记录' });
+            st.innerHTML = `✓ 发布好了<br>
+                <a href="${r.url}" target="_blank" class="pub-link">${r.url}</a><br>
+                <span class="pub-meta">${r.days} 天${r.photos ? ` · ${r.photos} 张照片` : ''}</span>`;
+            toast('发布好了', 'ok');
+        } catch (e) {
+            st.textContent = '发布失败：' + e.message;
+            toast('发布失败', 'err');
         } finally {
             btn.disabled = false;
         }
@@ -393,6 +492,23 @@
         $('token-input').addEventListener('keydown', e => {
             if (e.key === 'Enter') $('login-btn').click();
         });
+        $('publish-btn').addEventListener('click', openPublish);
+        $('pub-close').addEventListener('click', () => $('pub-modal').classList.add('hidden'));
+        $('pub-cancel').addEventListener('click', () => $('pub-modal').classList.add('hidden'));
+        $('pub-go').addEventListener('click', doPublish);
+        $('pub-range').addEventListener('click', e => {
+            const c = e.target.closest('.chip'); if (!c) return;
+            $('pub-range').querySelectorAll('.chip').forEach(x => x.classList.remove('on'));
+            c.classList.add('on');
+            pubOpt.weeks = Number(c.dataset.w);
+        });
+        $('pub-photos').addEventListener('click', e => {
+            const c = e.target.closest('.chip'); if (!c) return;
+            $('pub-photos').querySelectorAll('.chip').forEach(x => x.classList.remove('on'));
+            c.classList.add('on');
+            pubOpt.withPhotos = c.dataset.p === '1';
+        });
+
         $('logout-btn').addEventListener('click', () => {
             if (!confirm('退出后需要重新输入令牌，本地缓存会清掉。确定吗？')) return;
             localStorage.removeItem(TOKEN_KEY);
@@ -442,6 +558,7 @@
             syncing(true, '保存中…');
             try {
                 await DataStore.saveRecord(ed.dateKey, [], '', []);
+                syncing(false);
                 toast('已清空', 'ok');
                 $('day-modal').classList.add('hidden');
                 state.editing = null;

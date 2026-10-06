@@ -71,19 +71,34 @@ const Photos = {
      * 批量上传照片到 wow-data/photos/<dateKey>/
      * @returns {Promise<Array<{path,w,h,name,size}>>}
      */
-    async upload(api, owner, repo, dateKey, files, onProgress) {
+    /**
+     * 只压缩，不上传。
+     * ★ 拆出来是为了先知道总共多大 —— 分配仓库必须提前算，
+     *   等传完了才发现超容就晚了。
+     */
+    async pack(files, onProgress) {
+        const out = [];
+        for (let i = 0; i < files.length; i++) {
+            const c = await this.compress(files[i]);
+            c.base64 = this.toBase64(new Uint8Array(c.arrayBuffer));
+            out.push(c);
+            if (onProgress) onProgress(Math.round((i + 1) / files.length * 100));
+        }
+        return out;
+    },
+
+    async upload(api, owner, repo, dateKey, packed, onProgress) {
         const results = [];
         // 并发上限 4：照片不大但 base64 后有内存开销，稳妥些
         const CONC = 4;
-        for (let i = 0; i < files.length; i += CONC) {
-            const batch = files.slice(i, i + CONC);
-            const packed = await Promise.all(batch.map(async f => {
-                const c = await this.compress(f);
-                c.base64 = this.toBase64(new Uint8Array(c.arrayBuffer));
-                c.path = `photos/${dateKey}/${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}.jpg`;
-                return c;
-            }));
-            if (onProgress) onProgress(Math.round((i + batch.length) / files.length * 100));
+        for (let i = 0; i < packed.length; i += CONC) {
+            const batch = packed.slice(i, i + CONC);
+            for (const p of batch) {
+                if (!p.path) {
+                    p.path = `photos/${dateKey}/${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}.jpg`;
+                }
+            }
+            if (onProgress) onProgress(Math.round((i + batch.length) / packed.length * 100));
 
             // 一次 tree + commit 提交这批
             const ref = await api.getRef(owner, repo, 'heads/main');
