@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>WEEK OF WEEK · 粥粥记录</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ══════════ 登录 ══════════ -->
+<div id="login" class="login">
+  <div class="login-card">
+    <div class="login-logo">📚</div>
+    <h1 class="login-title">WEEK OF WEEK</h1>
+    <p class="login-sub">粥粥记录 · 一周学了多少，一眼看清</p>
+
+    <label class="login-label">GitHub 个人访问令牌（PAT）</label>
+    <input type="password" id="token-input" class="login-input"
+           placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off">
+    <p class="login-hint">
+      需要 <b>repo</b> 权限。数据存在你自己的私有仓库 <code>wow-data</code> 里，
+      不经过任何服务器。
+    </p>
+    <button id="login-btn" class="login-btn">进入 →</button>
+    <div id="login-err" class="login-err hidden"></div>
+
+    <details class="login-details">
+      <summary>怎么拿令牌？</summary>
+      <ol>
+        <li>打开 GitHub → 右上角头像 → <b>Settings</b></li>
+        <li>左侧最下 <b>Developer settings</b> → <b>Personal access tokens</b> → <b>Tokens (classic)</b></li>
+        <li><b>Generate new token (classic)</b>，勾选 <code>repo</code></li>
+        <li>生成后复制粘贴到上面（只显示一次）</li>
+      </ol>
+    </details>
+  </div>
+</div>
+
+<!-- ══════════ 主界面 ══════════ -->
+<div id="app" class="hidden">
+  <header class="top">
+    <div class="top-left">
+      <span class="top-logo">📚</span>
+      <div>
+        <h1 class="top-title">WEEK OF WEEK</h1>
+        <p class="top-sub">粥粥记录</p>
+      </div>
+    </div>
+    <div class="top-right">
+      <span id="sync-state" class="sync">—</span>
+      <span id="user-name" class="user"></span>
+      <button id="logout-btn" class="icon-btn" title="退出">⏻</button>
+    </div>
+  </header>
+
+  <!-- 欠账横幅 -->
+  <div id="debt-banner" class="debt-banner hidden"></div>
+
+  <nav class="bar">
+    <div class="seg">
+      <button class="seg-btn active" data-view="month">月</button>
+      <button class="seg-btn" data-view="week">周</button>
+    </div>
+    <div class="nav-mid">
+      <button id="prev" class="nav-btn">‹</button>
+      <span id="period-label" class="period"></span>
+      <button id="next" class="nav-btn">›</button>
+    </div>
+    <button id="today-btn" class="today-btn">今天</button>
+  </nav>
+
+  <!-- 月视图 -->
+  <section id="view-month" class="view">
+    <div class="wk-head">
+      <span>一</span><span>二</span><span>三</span><span>四</span>
+      <span>五</span><span>六</span><span class="wk-end">日</span>
+    </div>
+    <div id="grid" class="grid"></div>
+  </section>
+
+  <!-- 周视图 -->
+  <section id="view-week" class="view hidden">
+    <div id="week-summary" class="wsum"></div>
+    <div id="week-days" class="wdays"></div>
+    <div id="week-history" class="whist"></div>
+  </section>
+
+  <p class="tip">点任意日期 → 记下今天学了什么，可以配照片佐证</p>
+</div>
+
+<!-- ══════════ 日期弹窗 ══════════ -->
+<div id="day-modal" class="modal hidden">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div>
+        <h3 id="dm-title" class="dm-title">—</h3>
+        <p id="dm-sub" class="dm-sub">—</p>
+      </div>
+      <button id="dm-close" class="icon-btn">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="field">
+        <label class="flabel">今天学了什么</label>
+        <div id="dm-subjects" class="chips"></div>
+      </div>
+
+      <div class="field">
+        <label class="flabel">笔记（可选）</label>
+        <textarea id="dm-note" class="ta" rows="3"
+                  placeholder="比如：数学 分数的加法；英语 unit3 单词"></textarea>
+      </div>
+
+      <div class="field">
+        <label class="flabel">照片佐证（可选，可多张）</label>
+        <div id="dm-photos" class="photos"></div>
+        <label class="pick">
+          <input type="file" id="dm-file" accept="image/*" multiple hidden>
+          <span id="dm-pick" class="pick-btn">＋ 添加照片</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="modal-foot">
+      <button id="dm-clear" class="btn-ghost">清空这天</button>
+      <div class="foot-right">
+        <button id="dm-cancel" class="btn-ghost">取消</button>
+        <button id="dm-save" class="btn-main">保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ 照片大图 ══════════ -->
+<div id="viewer" class="viewer hidden">
+  <button id="viewer-close" class="viewer-x">✕</button>
+  <img id="viewer-img" alt="">
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="js/api.js"></script>
+<script src="js/store.js"></script>
+<script src="js/photo.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
