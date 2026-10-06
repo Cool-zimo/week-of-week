@@ -210,9 +210,16 @@
                 else if (w.weeksAgo === 1) when = `${label}（上周）`;
                 else when = `${label}（${w.weeksAgo} 周前）`;
 
+                // ★ 本周不能写"欠"：今天才周二就说欠一节，是假警报。
+                //   本周还在进行中，只能说"还差"；只有整周过完了才叫"欠"。
+                //   这正是"上上周你欠我一个语文"这句话的语义 ——
+                //   "欠"只对已经结束的周成立。
                 const items = w.stat.map(s => {
                     if (s.diff === 0) return `<span class="hitem hitem-ok">${esc(s.short)} 完成</span>`;
                     if (s.diff > 0) return `<span class="hitem hitem-ok">${esc(s.short)} 超 +${s.diff}</span>`;
+                    if (w.isCurrent) {
+                        return `<span class="hitem hitem-todo">${esc(s.short)} 还差 ${-s.diff}</span>`;
+                    }
                     return `<span class="hitem hitem-lack">${esc(s.short)} 欠 ${-s.diff}</span>`;
                 }).join('');
                 h += `<div class="hrow"><span class="hrow-when">${when}</span>

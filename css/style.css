@@ -405,3 +405,6 @@ button { font-family: inherit; cursor: pointer; }
 }
 .toast.err { background: #b91c1c; }
 .toast.ok { background: #15803d; }
+
+/* 本周"还差"用中性色：还没到周末，说"欠"是假警报 */
+.hitem-todo { background: #eef2ff; color: #4338ca; }
