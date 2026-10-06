@@ -114,18 +114,30 @@ const DataStore = {
                          .sort((a, b) => order.indexOf(a) - order.indexOf(b));
     },
 
+    /**
+     * 保存某天的记录。
+     *
+     * ★ 先 pull 再改：两台设备同时录不同日期时，
+     *   如果各自拿着旧数据直接覆盖，后写的会把先写的整份冲掉。
+     *   保存前拉一次最新，绝大多数冲突就不存在了。
+     */
     async saveRecord(dateKey, subjects, note, photos) {
         if (!this.data) this.data = this.blank();
-        const has = subjects.length || (note && note.trim()) || (photos && photos.length);
-        if (has) {
-            this.data.records[dateKey] = {
-                subjects: subjects.slice(),
-                note: note || '',
-                photos: photos || []
-            };
-        } else {
-            delete this.data.records[dateKey];
-        }
+        const apply = () => {
+            const has = subjects.length || (note && note.trim()) || (photos && photos.length);
+            if (has) {
+                this.data.records[dateKey] = {
+                    subjects: subjects.slice(),
+                    note: note || '',
+                    photos: photos || []
+                };
+            } else {
+                delete this.data.records[dateKey];
+            }
+        };
+        // 拉一次最新（失败不拦人 —— 离线也要能记）
+        try { await this.pull(); } catch (e) { console.warn('保存前同步失败，用本地数据', e); }
+        apply();
         await this.push();
     },
 
@@ -253,19 +265,45 @@ const DataStore = {
     async push() {
         if (!this.data) return;
         this.data.updatedAt = new Date().toISOString();
-        const text = JSON.stringify(this.data);
-        const b64 = btoa(unescape(encodeURIComponent(text)));
-        const res = await this.api.putFile(
-            this.owner, this.repo, 'data.json', b64,
-            `粥粥记录 ${this.toKey(new Date())}`, 'main', this.sha);
+        const write = () => {
+            const text = JSON.stringify(this.data);
+            const b64 = btoa(unescape(encodeURIComponent(text)));
+            return this.api.putFile(
+                this.owner, this.repo, 'data.json', b64,
+                `粥粥记录 ${this.toKey(new Date())}`, 'main', this.sha);
+        };
+        let res;
+        try {
+            res = await write();
+        } catch (e) {
+            /*
+             * 409 = 远端被别的设备改过了，我手里的 sha 过期。
+             * 拉最新 → 合并 → 用新 sha 重试一次。
+             *
+             * 合并规则：记录是按天存的，所以逐天合并 ——
+             * 我这边的改动保留，远端独有的日期也保留，两边都不丢。
+             */
+            if (e.status !== 409) throw e;
+            const mine = this.data.records || {};
+            await this.pull();
+            this.data.records = Object.assign({}, this.data.records || {}, mine);
+            res = await write();
+        }
         this.sha = (res && res.content && res.content.sha) || this.sha;
         this.cacheSave();
     },
 
+    /*
+     * ★ 缓存必须连 sha 一起存。
+     *
+     * 只存 data 的话，网络失败时 data 从缓存恢复、sha 却是 null，
+     * 下次 push 不带 sha = 直接强制覆盖远端 —— 等于把别的设备
+     * 刚录的课整份抹掉，而且用户完全看不出来。
+     */
     cacheSave() {
         try {
             localStorage.setItem(this.CACHE_KEY, JSON.stringify({
-                data: this.data, at: Date.now()
+                data: this.data, sha: this.sha, at: Date.now()
             }));
         } catch (e) { /* 配额满就算了 */ }
     },
@@ -273,7 +311,9 @@ const DataStore = {
         try {
             const raw = localStorage.getItem(this.CACHE_KEY);
             if (!raw) return null;
-            return JSON.parse(raw).data || null;
+            const o = JSON.parse(raw);
+            if (o && o.data) { this.sha = o.sha || null; return o.data; }
+            return null;
         } catch (e) { return null; }
     }
 };

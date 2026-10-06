@@ -25,7 +25,22 @@ class GitHubAPI {
             headers['Content-Type'] = 'application/json';
             body = JSON.stringify(body);
         }
-        const res = await fetch(url, { method: options.method || 'GET', headers, body });
+        /*
+         * ★ cache: 'no-store' 是必须的，不是优化。
+         *
+         * GitHub contents API 返回 `Cache-Control: private, max-age=60`。
+         * 浏览器会照办 —— 于是"设备 A 录完课，设备 B 刷新"时，
+         * 请求根本没发出去，直接从 HTTP 缓存里拿回 60 秒前的旧数据。
+         * 刷新页面也绕不过这层缓存，所以看起来像"同步坏了"。
+         *
+         * 实测：同一时刻，默认缓存读到 3 条，no-store 读到 4 条。
+         */
+        const res = await fetch(url, {
+            method: options.method || 'GET',
+            headers,
+            body,
+            cache: 'no-store'
+        });
         if (!res.ok) {
             let msg = res.statusText;
             try {
@@ -82,7 +97,8 @@ class GitHubAPI {
                 'Authorization': `token ${this.token}`,
                 'Accept': 'application/vnd.github.raw',
                 'X-GitHub-Api-Version': '2022-11-28'
-            }
+            },
+            cache: 'no-store'   // 同上：照片也是随时会新增的，不能被缓存
         });
         if (!res.ok) {
             const err = new Error(res.statusText);
